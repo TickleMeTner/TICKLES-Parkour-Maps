@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TBM Map Playlist Hub</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+
+    <style>
+        body {
+            background: linear-gradient(135deg, #1a4aac 0%, #64b5f6 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            margin: 0;
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        /* --- BUTTONS & ANIMATIONS --- */
+        .btn-blue, .btn-dark, .map-list-item, .user-select-btn {
+            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .btn-blue:hover, .btn-dark:hover, .map-list-item:hover, .user-select-btn:hover {
+            transform: scale(1.03) translateY(-3px);
+            filter: brightness(1.1);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn-blue:active, .btn-dark:active, .map-list-item:active {
+            transform: scale(0.97) translateY(0);
+        }
+
+        .btn-dark { background-color: #111; color: white; font-weight: bold; text-transform: uppercase; }
+        .btn-blue { background-color: #0099ff; color: white; font-weight: 900; text-transform: uppercase; }
+        
+        .user-select-btn {
+            background-color: #111;
+            color: white;
+            padding: 1rem;
+            text-align: center;
+            border-bottom: 4px solid #0099ff;
+            font-weight: 800;
+            margin-bottom: 0.5rem;
+            width: 100%;
+        }
+
+        /* --- SCROLLING --- */
+        .scroll-area {
+            height: 350px;
+            overflow-y: auto;
+            scroll-behavior: smooth;
+        }
+
+        .map-list-item {
+            background-color: #0099ff;
+            color: white;
+            font-weight: 800;
+            padding: 0.75rem 1rem;
+            margin-bottom: 0.6rem;
+            border-left: 6px solid #005fa3;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .screen-fade { animation: fadeIn 0.4s ease-out forwards; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #0099ff; border-radius: 4px; }
+
+        /* Specific for non-clickable headers to prevent shifting */
+        .no-shift {
+            transform: none !important;
+            cursor: default !important;
+            box-shadow: none !important;
+            filter: none !important;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="app-container" class="glass-panel p-6 md:p-10 rounded-3xl shadow-2xl max-w-5xl w-full flex flex-col md:flex-row gap-8 items-stretch mx-4">
+        
+        <div id="left-pane" class="flex flex-col items-center space-y-6 w-full md:w-1/2">
+            <div class="w-full aspect-video ...">
+                <img src="https://i.redd.it/83rqk6li9aig1.jpeg" class="w-full h-full object-cover opacity-90">
+            </div>
+
+            <button onclick="openCompiledList()" class="btn-blue py-5 px-6 text-2xl w-full text-center shadow-lg border-b-4 border-blue-900 rounded-lg">
+                TBM'S MAP PLAYLIST
+            </button>
+
+	    <button onclick="openWebpageDetails()" class="btn-dark py-5 px-6 text-2xl w-full text-center shadow-lg border-b-4 border-gray-900 rounded-lg">
+        WEBPAGE DETAILS
+    	    </button>
+        </div>
+
+        <div id="content-pane" class="w-full md:w-1/2 flex flex-col bg-black/30 rounded-2xl p-6 min-h-[500px] border border-white/10">
+            
+            <div id="screen-user-select" class="flex flex-col h-full screen-fade items-center">
+                <h2 class="text-white font-black italic text-xl mb-6 tracking-widest border-b border-blue-500 pb-2 uppercase w-full text-center">Select Creator</h2>
+                <div class="flex flex-col space-y-2 w-full px-4">
+                    <button onclick="viewUserPlaylist('TickleMeTner')" class="user-select-btn">TickleMeTner</button>
+                    <button onclick="viewUserPlaylist('Blackfyre7096')" class="user-select-btn">Blackfyre7096</button>
+                    <button onclick="viewUserPlaylist('MineBtleFury')" class="user-select-btn">MineBtleFury</button>
+                </div>
+                <button onclick="showScreen('login')" class="mt-auto btn-dark py-2 px-6 text-[10px] rounded shadow-md uppercase tracking-widest">Admin Portal</button>
+            </div>
+
+            <div id="screen-playlist" class="hidden flex-col h-full screen-fade">
+                <div class="w-full h-28 mb-3 overflow-hidden border-2 border-white/40 relative shadow-lg rounded-md">
+                    <img src="https://preview.redd.it/parkour-maps-ticklemetner-v0-o53qy5nq3aig1.jpeg?width=1280&format=pjpg&auto=webp&s=55720bb425f03787b7f89ecdb01c8fa1f5a4b301" class="w-full h-full object-cover">
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent flex items-end p-3">
+                        <span id="playlistHeaderName" class="text-white font-black italic text-lg tracking-wider uppercase">User Archives</span>
+                    </div>
+                </div>
+
+                <div id="mapScrollContainer" class="scroll-area bg-white/95 p-4 border-4 border-white shadow-inner mb-4 rounded-sm">
+                    <div id="mapListDisplay" class="flex flex-col"></div>
+                </div>
+                
+                <button onclick="handleReturn()" id="returnBtn" class="btn-blue py-3 font-black text-sm shadow-md rounded-md uppercase">Return to Selection</button>
+            </div>
+
+            <div id="screen-details" class="hidden flex-col h-full screen-fade">
+                <div class="w-full h-40 bg-black rounded border-2 border-blue-500 overflow-hidden mb-4 relative group">
+                     <img id="detailImg" src="https://wallpaperaccess.com/full/1152733.jpg" class="w-full h-full object-cover opacity-60">
+                    
+                    <button onclick="navMap(-1)" class="absolute left-0 inset-y-0 px-4 bg-black/40 hover:bg-blue-600/60 text-white font-black opacity-0 group-hover:opacity-100 transition-opacity z-10">◀</button>
+                    <button onclick="navMap(1)" class="absolute right-0 inset-y-0 px-4 bg-black/40 hover:bg-blue-600/60 text-white font-black opacity-0 group-hover:opacity-100 transition-opacity z-10">▶</button>
+
+                    <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <span class="text-blue-300 font-black text-2xl uppercase tracking-widest">MAP INTEL</span>
+                    </div>
+
+                    <div class="absolute bottom-1 right-2 text-[10px] text-white/50 font-mono" id="navCounter">0 / 0</div>
+                </div>
+                
+                <h2 id="detailName" class="text-white font-black text-2xl uppercase border-b border-blue-500 pb-1 mb-2">Map Name</h2>
+                
+                <div class="flex gap-2 mb-4">
+                     <span class="bg-blue-600 text-white text-[10px] px-2 py-1 rounded font-bold uppercase" id="detailType">Gametype</span>
+                     <span class="bg-orange-600 text-white text-[10px] px-2 py-1 rounded font-bold uppercase" id="detailDiff">N/A</span>
+                     <span class="bg-gray-700 text-white text-[10px] px-2 py-1 rounded font-bold uppercase">MCC REACH</span>
+                </div>
+
+                <div class="bg-black/40 p-4 border border-white/10 rounded-lg text-gray-300 text-sm mb-4 h-32 overflow-y-auto italic" id="detailDesc">
+                    No description available.
+                </div>
+
+                <div class="mt-auto flex flex-col gap-2">
+                    <a id="downloadBtn" href="#" class="btn-blue py-3 text-center rounded font-black uppercase text-sm">DOWNLOAD FILE</a>
+                    <button onclick="showScreen('playlist')" class="btn-dark py-2 px-6 text-[10px] rounded shadow-md uppercase tracking-widest">Back to List</button>
+                </div>
+            </div>
+
+            <div id="screen-login" class="hidden flex-col items-center justify-center h-full space-y-6 screen-fade">
+                <div class="btn-blue py-2 px-10 text-xl shadow-md rounded-md no-shift w-full text-center">ADMIN ACCESS</div>
+                <input type="password" id="passInput" onkeydown="if(event.key==='Enter') attemptLogin()" placeholder="ENTER SPARTAN KEY" class="w-full p-4 bg-white border-4 border-blue-500 font-black text-center text-xl tracking-widest focus:outline-none">
+                <button onclick="attemptLogin()" class="btn-dark py-3 px-16 text-2xl border-b-4 border-gray-800 rounded-lg uppercase">Verify</button>
+                <button onclick="showScreen('user-select')" class="btn-blue py-2 px-8 text-xs rounded shadow-md uppercase">Back</button>
+            </div>
+
+            <div id="screen-admin" class="hidden flex-col h-full screen-fade">
+                <div class="bg-blue-600/20 p-6 rounded-xl border-2 border-dashed border-blue-400 flex flex-col items-center space-y-4 mb-4">
+                    <select id="targetUser" class="w-full p-2 bg-black text-white font-bold border border-blue-400">
+                        <option value="TickleMeTner">TickleMeTner</option>
+                        <option value="Blackfyre7096">Blackfyre7096</option>
+                        <option value="MineBtleFury">MineBtleFury</option>
+                    </select>
+                    <input type="text" id="newMapType" placeholder="GAMETYPE (e.g. SLAYER)" class="w-full p-2 bg-black text-white text-xs border border-blue-500">
+                    <input type="text" id="newMapDesc" placeholder="SHORT DESCRIPTION" class="w-full p-2 bg-black text-white text-xs border border-blue-500">
+                    
+                    <button onclick="document.getElementById('filePicker').click()" class="btn-dark py-3 px-8 text-xl rounded-lg">UPLOAD .MAP</button>
+                    <input type="file" id="filePicker" class="hidden" multiple onchange="handleFileUpload(this)">
+                </div>
+                
+                <div class="flex-grow bg-black/40 p-4 overflow-y-auto rounded-lg border border-white/10">
+                    <h3 class="text-white font-black text-sm mb-3 border-b border-white/20 pb-1">MANAGE DATA:</h3>
+                    <div id="adminListDisplay" class="space-y-2 pr-2" style="max-height: 220px; overflow-y: auto;"></div>
+                </div>
+                <button onclick="logout()" class="mt-4 text-red-400 underline font-bold text-center w-full">LOGOUT ADMIN</button>
+            </div>
+
+        </div>
+    </div>
+
+    <div id="compiled-overlay" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/95 backdrop-blur-xl screen-fade">
+        <div class="glass-panel w-full max-w-4xl h-[85vh] rounded-3xl p-8 flex flex-col border border-blue-500/40 shadow-2xl">
+            <div class="flex justify-between items-center mb-6 border-b-2 border-blue-500 pb-4">
+                <h2 class="text-white font-black italic text-3xl uppercase tracking-tighter">THE COMPILED ARCHIVE</h2>
+                <button onclick="closeCompiledList()" class="text-blue-400 hover:text-red-500 font-black text-xl transition-colors">CLOSE [X]</button>
+            </div>
+            
+            <div id="compiledListGrid" class="flex-grow overflow-y-auto pr-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+            </div>
+        </div>
+    </div>
+
+    <div id="webpage-details-overlay" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/95 backdrop-blur-xl screen-fade">
+        <div class="glass-panel w-full max-w-2xl h-[60vh] rounded-3xl p-8 flex flex-col border border-blue-500/40 shadow-2xl">
+            <div class="flex justify-between items-center mb-6 border-b-2 border-blue-500 pb-4">
+                <h2 class="text-white font-black italic text-3xl uppercase tracking-tighter">WEBPAGE DETAILS</h2>
+                <button onclick="closeWebpageDetails()" class="text-blue-400 hover:text-red-500 font-black text-xl transition-colors">CLOSE [X]</button>
+            </div>
+
+	    <div class="mb-4 text-gray-300">
+        	<h3 class="text-blue-400 font-black uppercase text-xl tracking-tighter mb-2">Mission Briefing</h3>
+        	<p class="text-lg leading-relaxed font-black text-white/90 text-justify">
+                   THIS WEBPAGE WAS MADE BY ONE PERSON, WHO HAPPENS TO OWN THREE ACCOUNTS, WHICH ARE LISTED IN THIS WEBPAGE. THE MAPS COMPILED ARE FROM THE GAME: HALO REACH MASTER CHIEF COLLECTION. ITS CATEGORY BELONGS TO PARKOUR GAMETYPE. MAKE SURE TO CHECK THE MAP DETAILS AND THE REQUIRED TYPE FOR USE. HAPPY JUMPING!
+        	</p>
+    	    </div>
+            
+            <div id="webpageListGrid" class="flex-grow overflow-y-auto pr-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                </div>
+        </div>
+    </div>
+
+    <script>
+        const ADMIN_KEY = "TBMadmin123";
+        const DB_KEY = "tbm_multi_vault_v2"; 
+        
+        let masterData = {
+            "TickleMeTner": [
+                { name: "ARCTICKLE", type: "Tickles Parkour", diff: "HARD", desc: "ICY PARKOUR.", img: "https://halo.wiki.gallery/images/thumb/6/6e/Solitary_05.jpg/1600px-Solitary_05.jpg", file: "https://github.com/TickleMeTner/TBM-Maps/raw/refs/heads/main/ARCTICKLE.mvar" },
+                { name: "ARCTIC PARKOUR", type: "Tickles Parkour", diff: "EASY", desc: "EASY ICY PARKOUR.", img: "https://halo.wiki.gallery/images/thumb/6/6e/Solitary_05.jpg/1600px-Solitary_05.jpg", file: "https://github.com/TickleMeTner/TBM-Maps/raw/refs/heads/main/ARCTIC%20PARKOUR.mvar" },
+                { name: "BROOMTICKLE", type: "Tickles Parkour", diff: "EASY", desc: "MONGOOSE ACROSS THE MAP.", img: "https://static.wikia.nocookie.net/halo/images/4/46/Tempest.jpg/revision/latest?cb=20101014142331", file: "https://github.com/TickleMeTner/TBM-Maps/raw/refs/heads/main/BROOMTICKLE.mvar" },
+                { name: "VENUS LIGHTHOUSE", type: "Tickles Parkour", diff: "HARD", desc: "ENJOY SUFFERING.", img: "https://preview.redd.it/parkour-maps-ticklemetner-v0-j1uxtfhz69ig1.jpg?width=1080&crop=smart&auto=webp&s=e1367641b9ee22b73d4864eec1418e6c54991ef1", file: "https://github.com/TickleMeTner/TBM-Maps/raw/refs/heads/main/VENUS%20LIGHTHOUSE.mvar" },
+                { name: "BURST PARKOUR", type: "Speeed Parkour", diff: "EASY", desc: "SPEED JUMPS.", img: "https://preview.redd.it/parkour-maps-ticklemetner-v0-9savemhz69ig1.jpg?width=1080&crop=smart&auto=webp&s=3010148ebe6378e86175d5bf65d610b5f1cdeda1", file: "https://github.com/TickleMeTner/TBM-Maps/raw/refs/heads/main/BURST%20PARKOUR.mvar" },
+                { name: "CRUEL RUINS", type: "Tickles Parkour", diff: "MEDIUM", desc: "FAR AWAY RUINS.", img: "https://preview.redd.it/parkour-maps-ticklemetner-v0-yak0chhz69ig1.jpg?width=1080&crop=smart&auto=webp&s=04e2fb85e782156fba9de654a2cd5583ad45fd94", file: "https://github.com/TickleMeTner/TBM-Maps/raw/refs/heads/main/CRUEL%20RUINS.mvar" },
+                { name: "LAND OF NOOB1ES", type: "Tickles Parkour", diff: "EASY", desc: "TYPICAL JUMP MAP.", img: "https://preview.redd.it/11jwvcok23241.jpg?width=1080&crop=smart&auto=webp&s=5e4151fa3efb3790957ce3bfd8af20a671cdc1e9", file: "https://github.com/TickleMeTner/TBM-Maps/raw/refs/heads/main/LAND%20OF%20NOOB1ES.mvar" },
+                { name: "TOWNS-PORT", type: "Tickles Parkour / Parkour Infinite", diff: "MEDIUM", desc: "a small town with a port.", img: "https://preview.redd.it/parkour-maps-ticklemetner-v0-roo1hos2a9ig1.jpeg?width=1280&format=pjpg&auto=webp&s=7b0085f90f0554876727310a772ee5543ee0d53b", file: "https://github.com/TickleMeTner/TBM-Maps/raw/refs/heads/main/TOWNS-PORT.mvar" },
+                { name: "NOBLE SIX CAVE", type: "Tickles Parkour", diff: "MEDIUM", desc: "NOBLE SIX, IS ALIVE! AND HE NEEDS YOUR HELP TO ESCAPE THE CAVE!.", img: "https://preview.redd.it/parkour-maps-ticklemetner-v0-ps0ondhz69ig1.jpg?width=1080&crop=smart&auto=webp&s=a11ce69dfe74305537440ffeae9a8d231187b371", file: "https://github.com/TickleMeTner/TBM-Maps/raw/refs/heads/main/NOBLE%20SIX%20CAVE.mvar" },
+                { name: "NOOBIE PARKOUR", type: "Tickles Parkour", diff: "EASY", desc: "NOOBS PARKOUR.", img: "https://preview.redd.it/parkour-maps-ticklemetner-v0-4b7dsmhz69ig1.jpg?width=1080&crop=smart&auto=webp&s=bc0b8377f94d3f2681542024e30a6ab7a54ec48b", file: "https://github.com/TickleMeTner/TBM-Maps/raw/refs/heads/main/NOOBIE%20PARKOUR.mvar" },
+                { name: "ATOMIC PARTICKLE", type: "Tickles Parkour", diff: "HARD", desc: "ATOMIC particles is being made in some hightower.", img: "https://preview.redd.it/parkour-maps-ticklemetner-v0-25sb0mhz69ig1.jpg?width=1080&crop=smart&auto=webp&s=4ecd4f1279a4776e01b16bb9b0cb22b2f60dcfef", file: "https://github.com/TickleMeTner/TBM-Maps/raw/refs/heads/main/ATOMIC%20PARTICKLE%20+.mvar" },
+                { name: "HEAD BUMPS PARKOUR", type: "Tickles Parkour", diff: "EASY", desc: "Typical jump map.", img: "https://preview.redd.it/11jwvcok23241.jpg?width=1080&crop=smart&auto=webp&s=5e4151fa3efb3790957ce3bfd8af20a671cdc1e9", file: "https://github.com/TickleMeTner/TBM-Maps/raw/refs/heads/main/HEAD%20BUMPS%20PARKOUR.mvar" },
+                { name: "SQUATICKLE", type: "Tickles Parkour", diff: "MEDIUM", desc: "Typical jump map.", img: "https://preview.redd.it/parkour-maps-ticklemetner-v0-ytf50qmz69ig1.jpg?width=1080&crop=smart&auto=webp&s=b00624c4d49adb482b5fee28b71ead5431ef7405", file: "https://github.com/TickleMeTner/TBM-Maps/raw/refs/heads/main/SQUATICKLE.mvar" },
+                { name: "THE UNFORGIVEN", type: "Tickles Parkour", diff: "HARD", desc: "Starts easier and gets harder.", img: "https://preview.redd.it/parkour-maps-ticklemetner-v0-qawkmhhz69ig1.jpg?width=1080&crop=smart&auto=webp&s=836491341fb6b5da5c29eab7a9fec3cfb3a0e684", file: "https://github.com/TickleMeTner/TBM-Maps/raw/refs/heads/main/THE%20UNFORGIVEN.mvar" },
+                { name: "THE PILLARS OF TICKLE", type: "Tickles Parkour", diff: "MEDIUM", desc: "A pillar of.", img: "https://preview.redd.it/parkour-maps-ticklemetner-v0-ojpk4mhz69ig1.jpg?width=1080&crop=smart&auto=webp&s=6ad30a4bfe57eadb01e60366bbfda396b1e2826b", file: "https://github.com/TickleMeTner/TBM-Maps/raw/refs/heads/main/THE%20PILLARS%20OF%20TICKLE.mvar" },
+                { name: "PATHICKLE", type: "Tickles Parkour", diff: "EASY", desc: "TWO PATHS FOR YOUR CHOOSING.", img: "https://preview.redd.it/parkour-maps-ticklemetner-v0-b07tnhhz69ig1.jpg?width=1080&crop=smart&auto=webp&s=a288c61e40c1a96a29f7b4009898c8223ae2c590", file: "https://github.com/TickleMeTner/TBM-Maps/raw/refs/heads/main/PATHTICKLE.mvar" },
+                { name: "TATATOOT", type: "Tickles Parkour", diff: "EASY", desc: "YTP phantom oak steak.", img: "https://preview.redd.it/11jwvcok23241.jpg?width=1080&crop=smart&auto=webp&s=5e4151fa3efb3790957ce3bfd8af20a671cdc1e9", file: "https://github.com/TickleMeTner/TBM-Maps/raw/refs/heads/main/TATATOOT%20JUMP.mvar" },
+                { name: "THE LAND OF NOOOBIES", type: "Tickles Parkour", diff: "EASY", desc: "REMASTERED VERSION OF MY FIRST MAP THAT WAS BROKEN.", img: "https://preview.redd.it/parkour-maps-ticklemetner-v0-x133cihz69ig1.jpg?width=1080&crop=smart&auto=webp&s=2d5c589df2f838aef3ef196be32656f78562ee02", file: "https://github.com/TickleMeTner/TBM-Maps/raw/refs/heads/main/THE%20LAND%20OF%20NOOOBIES%20REMASTERED.mvar" },
+                { name: "THREE-BOO-GAA-LOOS", type: "Tickles Parkour", diff: "EASY", desc: "Typical jump map.", img: "https://preview.redd.it/parkour-maps-ticklemetner-v0-chnjxdhz69ig1.jpg?width=1080&crop=smart&auto=webp&s=c69a49c622a82a38f066adf5953e40641da4bf99", file: "https://github.com/TickleMeTner/TBM-Maps/raw/refs/heads/main/THREE%20BOO%20GAA%20LOOS.mvar" },
+                { name: "FOUR-BOO-GAA-LOOS", type: "Tickles Parkour", diff: "EASY", desc: "Sequel to the THREE BOO GAA LOOS.", img: "https://preview.redd.it/parkour-maps-ticklemetner-v0-mtej0hhz69ig1.jpg?width=1080&crop=smart&auto=webp&s=ae53be738ff898e395707f5eec96393b90d2a413", file: "https://github.com/TickleMeTner/TBM-Maps/raw/refs/heads/main/FOUR%20BOO%20GAA%20LOOS.mvar" },
+                { name: "CRIS-TICKLE-CROSS", type: "Tickles Parkour", diff: "EASY", desc: "SEQUEL TO THE TATATOOT.", img: "https://preview.redd.it/11jwvcok23241.jpg?width=1080&crop=smart&auto=webp&s=5e4151fa3efb3790957ce3bfd8af20a671cdc1e9", file: "https://github.com/TickleMeTner/TBM-Maps/raw/refs/heads/main/CRIS-TICKLE-CROSS.mvar" },
+                { name: "CITY THAT ONCE WAS", type: "Tickles Parkour", diff: "MEDIUM", desc: "A city that once was the central hub for T&Ms industries.", img: "https://preview.redd.it/parkour-maps-ticklemetner-v0-xhndifhz69ig1.jpg?width=1080&crop=smart&auto=webp&s=c9f9549f1097685a52dd0c0cd14c5e2aaba3ccdd", file: "https://github.com/TickleMeTner/TBM-Maps/raw/refs/heads/main/CITY%20THAT%20ONCE%20WAS.mvar" },
+                { name: "T&M'S INDUSTRIAL FACILITY", type: "Tickles Parkour", diff: "EASY", desc: "Manufacturing hub.", img: "https://preview.redd.it/parkour-maps-ticklemetner-v0-awd4sehz69ig1.jpg?width=1080&crop=smart&auto=webp&s=2f375eae656ee9052a2e00af30990d73773aff91", file: "https://github.com/TickleMeTner/TBM-Maps/raw/refs/heads/main/T&M's%20INDUSTRIAL%20FACILITY.mvar" },
+                { name: "ASCEND TO THE FALLS", type: "Tickles Parkour", diff: "EASY", desc: "T&M's industries shipbuilding hub.", img: "https://preview.redd.it/parkour-maps-ticklemetner-v0-ca0f6fhz69ig1.jpg?width=1080&crop=smart&auto=webp&s=93dc855d24de4111b83bbcb54bc39c96366f6fe0", file: "https://github.com/TickleMeTner/TBM-Maps/raw/refs/heads/main/ASCEND%20TO%20THE%20FALLS.mvar" },
+                { name: "VALKYRIA", type: "Tickles Parkour", diff: "MEDIUM", desc: "A port city transformed from a mere towns-port.", img: "https://preview.redd.it/parkour-maps-ticklemetner-v0-m5zrefhz69ig1.jpg?width=1080&crop=smart&auto=webp&s=783f491649ee524a4b058e731027871c659c3e1c", file: "https://github.com/TickleMeTner/TBM-Maps/raw/refs/heads/main/VALKYRIA.mvar" }
+            ],
+            "Blackfyre7096": [
+                { name: "CHILD OF THE FALL", type: "Parkour Standard / Parkour Fyre (Mythic)", diff: "EASY", desc: "Ascend to the top.", img: "https://preview.redd.it/parkour-maps-blackfyre7096-v0-dlg5k9csa9ig1.jpg?width=1080&crop=smart&auto=webp&s=278a5c93872b868f6f0d849f4b7d0738b22a276a", file: "https://github.com/TickleMeTner/TBM-Maps/raw/refs/heads/main/CHILD%20OF%20THE%20FALL.mvar" },
+                { name: "HEIR TO THE FALL", type: "Parkour Fyre (Mythic)", diff: "HARD", desc: "Ascend to the Falls.", img: "https://preview.redd.it/parkour-maps-blackfyre7096-v0-8qyqifsra9ig1.jpg?width=1080&crop=smart&auto=webp&s=868c46dca387830702d102db2dff22ae65834bf0", file: "https://github.com/TickleMeTner/TBM-Maps/raw/refs/heads/main/HEIR%20TO%20THE%20FALL.mvar" },
+                { name: "NGAD", type: "Parkour Standard / Parkour Fyre (Mythic)", diff: "MEDIUM", desc: "A 6th Gneeration engine prototype for the Next Generation Air Dominance under T&M's Industries.", img: "https://preview.redd.it/parkour-maps-blackfyre7096-v0-bndw53ura9ig1.jpg?width=1080&crop=smart&auto=webp&s=af87d92ed07cc7a4e8f7b14d35ba857b0d2e421d", file: "https://github.com/TickleMeTner/TBM-Maps/raw/refs/heads/main/NGAD.mvar" }
+            ],
+            "MineBtleFury": [
+                { name: "THE ROCKET", type: "Parkour Infinite / Parkour Standard", diff: "EASY", desc: "Jump now or you'll miss the rocket! this map has two files. for standard and parkour infinite", img: "https://preview.redd.it/parkour-maps-minebtlefury-v0-cv4y2hyae8ig1.jpg?width=1080&crop=smart&auto=webp&s=b64537734f793654bee142bd378f217804e8e8c5", file: "https://github.com/TickleMeTner/TBM-Maps/raw/refs/heads/main/THE%20ROCKET.mvar" },
+                { name: "THE ROCKET 2", type: "Parkour Standard / Parkour Infinite", diff: "EASY", desc: "This map has two files: Parkour standard and Parkour infinite", img: "https://preview.redd.it/parkour-maps-minebtlefury-v0-55d5x0ube8ig1.jpg?width=1080&crop=smart&auto=webp&s=830b53fdb34b8755c1ddadf6c4d6e9e93f72d478", file: "https://github.com/TickleMeTner/TBM-Maps/raw/refs/heads/main/THE%20ROCKET%202.mvar" },
+                { name: "DREADNOUGHT", type: "Parkour Standard", diff: "EASY", desc: "This map has two files: HMS and the other, dreadnought only. Parkour standard and Parkour Infinite", img: "https://preview.redd.it/parkour-maps-minebtlefury-v0-w3h4amdce8ig1.jpg?width=1080&crop=smart&auto=webp&s=5c660641b60ea1b54e0fe9987885193bc59bef0a", file: "https://github.com/TickleMeTner/TBM-Maps/raw/refs/heads/main/DREADNOUGHT.mvar" },
+                { name: "PUNK AIRBASE", type: "Parkour Infinite", diff: "MEDIUM", desc: "Jump around the air base", img: "https://preview.redd.it/parkour-maps-minebtlefury-v0-vm8ygxxce8ig1.jpg?width=1080&crop=smart&auto=webp&s=17217bf31042047c72b1a77fef03aaecfb4f8b09", file: "https://github.com/TickleMeTner/TBM-Maps/raw/refs/heads/main/PUNK%20AIRBASE.mvar" },
+                { name: "THE JAUNT", type: "Mongoose Parkour Infinite", diff: "MEDIUM", desc: "Navigate the difficult terrain of the Jaunt", img: "https://preview.redd.it/mongoose-parkour-maps-minebtlefury-v0-axwkeb85c8ig1.jpg?width=1080&crop=smart&auto=webp&s=4e3d4f0e438e408dc05656a7ca92cf7c566c669e", file: "https://github.com/TickleMeTner/TBM-Maps/raw/refs/heads/main/THE%20JAUNT.mvar" },
+                { name: "PANDORAS BOX", type: "Mongoose Parkour Infinite", diff: "HARD", desc: "Navigate the inside of the box", img: "https://preview.redd.it/mongoose-parkour-maps-minebtlefury-v0-s56k8a85c8ig1.jpg?width=1080&crop=smart&auto=webp&s=9cc0f35dcd05d7c4046f4fd3a71af9bb83ccad08", file: "https://github.com/TickleMeTner/TBM-Maps/raw/refs/heads/main/PANDORAS%20BOX.mvar" },
+                { name: "THE PUNKSTER", type: "Mongoose Parkour Infinite", diff: "MEDIUM", desc: "A port city mongoose parkour", img: "https://preview.redd.it/mongoose-parkour-maps-minebtlefury-v0-9re7rb85c8ig1.jpg?width=1080&crop=smart&auto=webp&s=1e157413f6a72395c0b8d9b4a5f8b46176fdef66", file: "https://github.com/TickleMeTner/TBM-Maps/raw/refs/heads/main/THE%20PUNKSTER.mvar" },
+                { name: "THE THINNING", type: "Mongoose Parkour Infinite", diff: "EASY", desc: "Easy forrest terrain mongoose.", img: "https://preview.redd.it/mongoose-parkour-maps-minebtlefury-v0-g90jea85c8ig1.jpg?width=1080&crop=smart&auto=webp&s=0101ac003648b29a8fb4aea30066d5a8d56925be", file: "https://github.com/TickleMeTner/TBM-Maps/raw/refs/heads/main/THE%20THINNING.mvar" },
+                { name: "THE AURORA", type: "Mongoose Parkour Infinite", diff: "MEDIUM", desc: "A secret 6th Generation fighter aircraft prototype by T&M's Industries.", img: "https://preview.redd.it/mongoose-parkour-maps-minebtlefury-v0-rdvar985c8ig1.jpg?width=1080&crop=smart&auto=webp&s=edd8003ed2d4889d774c2a7d32524ab5b9728ed9", file: "https://github.com/TickleMeTner/TBM-Maps/raw/refs/heads/main/THE%20AURORA.mvar" },
+                { name: "LAPIUTA", type: "Mongoose Parkour Infinite", diff: "MEDIUM", desc: "Drive across the difficult terrain as the castle looms in the sky.", img: "https://preview.redd.it/mongoose-parkour-maps-minebtlefury-v0-xudmub85c8ig1.jpg?width=1080&crop=smart&auto=webp&s=c571c73c20030d8767f38ff76b4894e4fea65ad3", file: "https://github.com/TickleMeTner/TBM-Maps/raw/refs/heads/main/LAPIUTA.mvar" }
+            ]
+        };
+        let currentUser = null;
+        let currentIndex = 0; 
+
+        function showScreen(screenId) {
+            ['user-select', 'playlist', 'details', 'login', 'admin'].forEach(s => {
+                document.getElementById(`screen-${s}`).classList.add('hidden');
+            });
+            document.getElementById(`screen-${screenId}`).classList.remove('hidden');
+        }
+
+        function viewUserPlaylist(user) {
+            currentUser = user;
+            document.getElementById('playlistHeaderName').innerText = `${user.toUpperCase()} ARCHIVES`;
+            renderPlaylist();
+            showScreen('playlist');
+        }
+
+        function renderPlaylist() {
+            const container = document.getElementById('mapListDisplay');
+            container.innerHTML = "";
+            masterData[currentUser].forEach((map, index) => {
+                container.innerHTML += `
+                    <div onclick="viewMapDetails(${index})" class="map-list-item">
+                        <span class="truncate pr-4 uppercase tracking-tighter">${map.name}</span>
+                        <span class="text-[10px] opacity-70 whitespace-nowrap">VIEW INTEL ▶</span>
+                    </div>`;
+            });
+        }
+
+        function viewMapDetails(index) {
+            currentIndex = index;
+            const map = masterData[currentUser][index];
+            document.getElementById('detailName').innerText = map.name;
+            document.getElementById('detailType').innerText = map.type;
+            document.getElementById('detailDiff').innerText = map.diff;
+            document.getElementById('detailDesc').innerText = map.desc;
+            document.getElementById('detailImg').src = map.img;
+            document.getElementById('downloadBtn').href = map.file;
+            document.getElementById('navCounter').innerText = `${index + 1} / ${masterData[currentUser].length}`;
+            showScreen('details');
+        }
+
+        function navMap(direction) {
+            let newIdx = currentIndex + direction;
+            if (newIdx >= 0 && newIdx < masterData[currentUser].length) {
+                viewMapDetails(newIdx);
+            }
+        }
+
+        function openCompiledList() {
+            const grid = document.getElementById('compiledListGrid');
+            grid.innerHTML = ""; 
+            for (const [user, maps] of Object.entries(masterData)) {
+                maps.forEach(map => {
+                    grid.innerHTML += `
+                        <div class="bg-white/5 p-4 border border-white/10 rounded-lg flex gap-4 items-center hover:bg-white/10 transition-all">
+                            <img src="${map.img}" class="w-16 h-16 object-cover rounded border border-blue-500/50">
+                            <div>
+                                <div class="text-blue-400 font-black text-[10px] uppercase tracking-widest">${user}</div>
+                                <div class="text-white font-bold text-lg leading-tight">${map.name}</div>
+                                <div class="text-gray-500 text-[10px] font-bold uppercase">${map.type}</div>
+                            </div>
+                        </div>`;
+                });
+            }
+            document.getElementById('compiled-overlay').classList.remove('hidden');
+        }
+
+        function closeCompiledList() {
+            document.getElementById('compiled-overlay').classList.add('hidden');
+        }
+
+        window.addEventListener('keydown', (e) => {
+            if (document.getElementById('screen-details').classList.contains('hidden')) return;
+            if (e.key === "ArrowRight") navMap(1);
+            if (e.key === "ArrowLeft") navMap(-1);
+        });
+
+        function handleReturn() {
+            showScreen('user-select');
+            currentUser = null;
+        }
+
+        function attemptLogin() {
+            if (document.getElementById('passInput').value === ADMIN_KEY) {
+                renderAdminList();
+                showScreen('admin');
+            } else {
+                alert("ACCESS DENIED.");
+            }
+        }
+
+        function handleFileUpload(input) {
+            const files = Array.from(input.files);
+            const user = document.getElementById('targetUser').value;
+            const type = document.getElementById('newMapType').value || "UNKNOWN";
+            const desc = document.getElementById('newMapDesc').value || "NO INTEL.";
+            files.forEach(file => {
+                masterData[user].push({
+                    name: file.name.replace('.map', '').toUpperCase(),
+                    type: type,
+                    diff: "N/A",
+                    desc: desc,
+                    img: "https://wallpaperaccess.com/full/1152733.jpg",
+                    file: "#"
+                });
+            });
+            save();
+            renderAdminList();
+            alert(`DATA UPLOADED TO ${user}.`);
+        }
+
+        function deleteMap(user, index) {
+            masterData[user].splice(index, 1);
+            save();
+            renderAdminList();
+        }
+
+        function renderAdminList() {
+            const container = document.getElementById('adminListDisplay');
+            container.innerHTML = "";
+            for (const [user, maps] of Object.entries(masterData)) {
+                maps.forEach((map, i) => {
+                    container.innerHTML += `
+                        <div class="flex justify-between items-center bg-white/10 p-2 rounded border border-white/5 text-white text-xs mb-1">
+                            <span class="truncate"><b>[${user}]</b> ${map.name}</span>
+                            <button onclick="deleteMap('${user}', ${i})" class="text-red-500 font-bold px-2">X</button>
+                        </div>`;
+                });
+            }
+        }
+
+        function save() {
+            const encrypted = CryptoJS.AES.encrypt(JSON.stringify(masterData), ADMIN_KEY).toString();
+            localStorage.setItem(DB_KEY, encrypted);
+        }
+
+        function load() {
+            const raw = localStorage.getItem(DB_KEY);
+            if (!raw) return;
+            try {
+                const bytes = CryptoJS.AES.decrypt(raw, ADMIN_KEY);
+                const decrypted = bytes.toString(CryptoJS.enc.Utf8);
+                if (decrypted) masterData = JSON.parse(decrypted);
+            } catch(e) {}
+        }
+
+        function logout() { showScreen('user-select'); }
+
+        load();
+
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('view') === 'compiled') {
+            openCompiledList(); 
+        } else {
+            showScreen('user-select');
+        }
+    	// ... your existing code above ...
+
+        function openWebpageDetails() {
+            const grid = document.getElementById('webpageListGrid');
+            grid.innerHTML = ""; 
+            for (const [user, maps] of Object.entries(masterData)) {
+                maps.forEach(map => {
+                    if (map.url) { 
+                        grid.innerHTML += `
+                            <a href="${map.url}" target="_blank" class="bg-white/5 p-4 border border-white/10 rounded-lg flex gap-4 items-center hover:bg-blue-600/20 transition-all group no-underline">
+                                <img src="${map.img}" class="w-16 h-16 object-cover rounded border border-blue-500/50">
+                                <div class="text-left">
+                                    <div class="text-blue-400 font-black text-[10px] uppercase tracking-widest">${user}</div>
+                                    <div class="text-white font-bold text-lg leading-tight group-hover:text-blue-300">VIEW WEBPAGE: ${map.name}</div>
+                                    <div class="text-gray-500 text-[10px] font-bold uppercase">CLICK TO OPEN LINK</div>
+                                </div>
+                            </a>`;
+                    }
+                });
+            }
+            document.getElementById('webpage-details-overlay').classList.remove('hidden');
+            document.getElementById('webpage-details-overlay').classList.add('flex');
+        }
+
+        function closeWebpageDetails() {
+            document.getElementById('webpage-details-overlay').classList.add('hidden');
+            document.getElementById('webpage-details-overlay').classList.remove('flex');
+        }
+
+    </script>
+</body>
+</html>
