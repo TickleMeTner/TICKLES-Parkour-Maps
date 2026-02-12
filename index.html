@@ -26,14 +26,35 @@
 
     <style>
         body {
-            background: linear-gradient(135deg, #1a4aac 0%, #64b5f6 100%);
+            background-color: #000; /* Changed to black for better video loading */
             min-height: 100vh;
             font-family: 'Segoe UI', sans-serif;
             display: flex;
             align-items: center;
             justify-content: center;
-            overflow-y: auto;
+            overflow-x: hidden; /* Prevents side scroll from video */
             margin: 0;
+        }
+
+        /* NEW: Video Container Styling */
+        .bg-video-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -10; /* Keeps it behind everything */
+            overflow: hidden;
+            background-color: black;
+        }
+
+        /* NEW: Video Element Styling */
+        .bg-video-container video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover; /* Ensures full screen on all devices */
+            opacity: 0.6; 
+            filter: brightness(0.4) contrast(1.1); /* The "Ambitious" look */
         }
 
         .glass-panel {
@@ -114,6 +135,13 @@
 </head>
 <body>
 
+    <div class="bg-video-container">
+        <video autoplay muted loop playsinline id="bgVideo">
+            <source src="background.mp4" type="video/mp4">
+        </video>
+        <div class="absolute inset-0 pointer-events-none bg-gradient-to-r from-black/40 via-transparent to-black/40"></div>
+    </div>
+
     <div id="app-container" class="glass-panel p-6 md:p-10 rounded-3xl shadow-2xl max-w-5xl w-full flex flex-col md:flex-row gap-8 items-stretch mx-4">
         
         <div id="left-pane" class="flex flex-col items-center space-y-6 w-full md:w-1/2">
@@ -159,7 +187,7 @@
             <div id="screen-details" class="hidden flex-col h-full screen-fade">
                 <div class="w-full h-40 bg-black rounded border-2 border-blue-500 overflow-hidden mb-4 relative group">
                      <img id="detailImg" src="https://wallpaperaccess.com/full/1152733.jpg" class="w-full h-full object-cover opacity-60">
-                    <button onclick="navMap(-1)" class="absolute left-0 inset-y-0 px-4 bg-black/40 hover:bg-blue-600/60 text-white font-black opacity-0 group-hover:opacity-100 transition-opacity z-10">◀</button>
+                     <button onclick="navMap(-1)" class="absolute left-0 inset-y-0 px-4 bg-black/40 hover:bg-blue-600/60 text-white font-black opacity-0 group-hover:opacity-100 transition-opacity z-10">◀</button>
                     <button onclick="navMap(1)" class="absolute right-0 inset-y-0 px-4 bg-black/40 hover:bg-blue-600/60 text-white font-black opacity-0 group-hover:opacity-100 transition-opacity z-10">▶</button>
                     <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
                         <span class="text-blue-300 font-black text-2xl uppercase tracking-widest">MAP INTEL</span>
@@ -227,7 +255,7 @@
     		    <h3 class="text-blue-400 font-black uppercase text-xl tracking-tighter mb-2">Mission Briefing</h3>
                     <p class="text-lg leading-relaxed font-black text-white/90 text-justify">
                         THIS WEBPAGE WAS MADE BY ONE PERSON, WHO HAPPENS TO OWN THREE ACCOUNTS, WHICH ARE LISTED IN THIS WEBPAGE. THE MAPS COMPILED ARE FROM THE GAME: HALO REACH MASTER CHIEF COLLECTION. ITS CATEGORY BELONGS TO PARKOUR GAMETYPE. MAKE SURE TO CHECK THE MAP DETAILS AND THE REQUIRED TYPE FOR USE. HAPPY JUMPING!
-    		    </p>
+                    </p>
 
     		    <a href="https://youtube.com/@ticklemetner?si=RIfCUBSZ7Mux8p99" target="_blank" 
        		       class="mt-6 py-4 px-6 text-xl w-full text-center shadow-lg rounded-2xl flex items-center justify-center gap-3 transition-all hover:scale-[1.03] active:scale-[0.97] no-underline"
@@ -411,7 +439,8 @@
 
         // --- FIXED LOGIC: Correctly set the user before opening the map ---
         function selectFromArchive(user, index) {
-            currentUser = user; // Essential fix: set the user globally
+            currentUser = user;
+            // Essential fix: set the user globally
             document.getElementById('playlistHeaderName').innerText = `${user.toUpperCase()} ARCHIVES`;
             closeCompiledList();
             viewMapDetails(index);
@@ -504,7 +533,8 @@
             } catch(e) {}
         }
 
-        function logout() { showScreen('user-select'); }
+        function logout() { showScreen('user-select');
+        }
 
         function openWebpageDetails() {
             const grid = document.getElementById('webpageListGrid');
